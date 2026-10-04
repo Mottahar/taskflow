@@ -1,0 +1,373 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>TaskFlow | Hussein Motahar</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <header class="topbar">
+
+        <div class="brand">
+            <div class="logo">T</div>
+
+            <div>
+                <h1>TaskFlow</h1>
+                <span>Project Management</span>
+            </div>
+        </div>
+
+        <div class="topbar-actions">
+
+            <button id="themeToggle" class="icon-button">
+                🌙
+            </button>
+
+            <div class="user">
+                <div class="avatar">HM</div>
+
+                <div class="user-info">
+                    <strong>Hussein Motahar</strong>
+                    <span>Administrator</span>
+                </div>
+            </div>
+
+        </div>
+
+    </header>
+
+
+    <main class="container">
+
+        <section class="welcome">
+
+            <div>
+                <p class="small-title">PROJECT MANAGEMENT</p>
+
+                <h2>
+                    Welcome back, Hussein 👋
+                </h2>
+
+                <p>
+                    Manage your projects and keep your tasks organized.
+                </p>
+            </div>
+
+            <button id="newTaskButton" class="primary-button">
+                + New Task
+            </button>
+
+        </section>
+
+
+        <section class="statistics">
+
+            <div class="stat-card">
+
+                <div class="stat-icon blue">
+                    📁
+                </div>
+
+                <div>
+                    <span>Total Projects</span>
+                    <strong id="totalProjects">0</strong>
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon purple">
+                    📝
+                </div>
+
+                <div>
+                    <span>Total Tasks</span>
+                    <strong id="totalTasks">0</strong>
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon orange">
+                    🔄
+                </div>
+
+                <div>
+                    <span>In Progress</span>
+                    <strong id="progressTasks">0</strong>
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon green">
+                    ✅
+                </div>
+
+                <div>
+                    <span>Completed</span>
+                    <strong id="completedTasks">0</strong>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <section class="section">
+
+            <div class="section-header">
+
+                <div>
+                    <h3>Projects</h3>
+                    <p>Your current projects</p>
+                </div>
+
+                <button id="newProjectButton" class="secondary-button">
+                    + New Project
+                </button>
+
+            </div>
+
+
+            <div id="projectsContainer" class="projects-grid">
+
+            </div>
+
+        </section>
+
+
+        <section class="section">
+
+            <div class="section-header">
+
+                <div>
+                    <h3>Task Board</h3>
+                    <p>Track your tasks</p>
+
+                </div>
+
+                <div class="filters">
+
+                    <input
+                        type="search"
+                        id="searchInput"
+                        placeholder="Search tasks..."
+                    >
+
+                    <select id="priorityFilter">
+
+                        <option value="all">
+                            All priorities
+                        </option>
+
+                        <option value="high">
+                            High
+                        </option>
+
+                        <option value="medium">
+                            Medium
+                        </option>
+
+                        <option value="low">
+                            Low
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <div class="board">
+
+                <div class="column">
+
+                    <div class="column-header">
+
+                        <div>
+                            <h4>To Do</h4>
+                            <span id="todoCount">0 tasks</span>
+                        </div>
+
+                        <span class="column-dot todo-dot"></span>
+
+                    </div>
+
+                    <div
+                        id="todoColumn"
+                        class="task-list"
+                    ></div>
+
+                </div>
+
+
+                <div class="column">
+
+                    <div class="column-header">
+
+                        <div>
+                            <h4>In Progress</h4>
+                            <span id="progressCount">0 tasks</span>
+                        </div>
+
+                        <span class="column-dot progress-dot"></span>
+
+                    </div>
+
+                    <div
+                        id="progressColumn"
+                        class="task-list"
+                    ></div>
+
+                </div>
+
+
+                <div class="column">
+
+                    <div class="column-header">
+
+                        <div>
+                            <h4>Completed</h4>
+                            <span id="completedCount">0 tasks</span>
+                        </div>
+
+                        <span class="column-dot completed-dot"></span>
+
+                    </div>
+
+                    <div
+                        id="completedColumn"
+                        class="task-list"
+                    ></div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <footer>
+
+            <p>
+                TaskFlow © 2026
+            </p>
+
+            <p>
+                Developed by
+                <strong>Hussein Motahar</strong>
+            </p>
+
+        </footer>
+
+    </main>
+
+
+    <div id="taskModal" class="modal hidden">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <h3>Create New Task</h3>
+
+                <button
+                    id="closeTaskModal"
+                    class="close-button"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <form id="taskForm">
+
+                <label>
+                    Task title
+                </label>
+
+                <input
+                    type="text"
+                    id="taskTitle"
+                    placeholder="Enter task title"
+                    required
+                >
+
+
+                <label>
+                    Project
+                </label>
+
+                <input
+                    type="text"
+                    id="taskProject"
+                    placeholder="Project name"
+                    required
+                >
+
+
+                <label>
+                    Priority
+                </label>
+
+                <select id="taskPriority">
+
+                    <option value="low">
+                        Low
+                    </option>
+
+                    <option value="medium" selected>
+                        Medium
+                    </option>
+
+                    <option value="high">
+                        High
+                    </option>
+
+                </select>
+
+
+                <label>
+                    Deadline
+                </label>
+
+                <input
+                    type="date"
+                    id="taskDeadline"
+                >
+
+
+                <button
+                    type="submit"
+                    class="primary-button full-width"
+                >
+                    Create Task
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <script src="app.js"></script>
+
+</body>
+</html>
+```
