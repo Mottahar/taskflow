@@ -10,7 +10,7 @@
     theme: "taskflow_theme"
   };
 
-  const STATUSES = ["todo", "in-progress", "completed"];
+  const STATUSES = ["todo", "progress", "completed"];
 
   const PRIORITIES = {
     high: "High",
@@ -18,13 +18,7 @@
     low: "Low"
   };
 
-  const COLORS = [
-    "#7065f0",
-    "#2589ed",
-    "#12a594",
-    "#e99a35",
-    "#e15c79"
-  ];
+  const COLORS = ["#7065f0", "#2589ed", "#12a594", "#e99a35", "#e15c79"];
 
   const defaultProjects = [
     { id: "p1", name: "Website Redesign", color: COLORS[0] },
@@ -36,7 +30,6 @@
     {
       id: "t1",
       title: "Design the dashboard",
-      description: "",
       project: "Website Redesign",
       priority: "high",
       dueDate: "",
@@ -46,17 +39,15 @@
     {
       id: "t2",
       title: "Review project requirements",
-      description: "",
       project: "Website Redesign",
       priority: "medium",
       dueDate: "",
-      status: "in-progress",
+      status: "progress",
       createdAt: Date.now()
     },
     {
       id: "t3",
       title: "Organize weekly goals",
-      description: "",
       project: "Personal Goals",
       priority: "low",
       dueDate: "",
@@ -65,25 +56,9 @@
     }
   ];
 
-  const $ = (selector, root = document) =>
-    root.querySelector(selector);
-
-  const $$ = (selector, root = document) =>
-    [...root.querySelectorAll(selector)];
-
-  const escapeHTML = value =>
-    String(value ?? "").replace(/[&<>"']/g, char => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;"
-    })[char]);
-
   function loadArray(key, fallback) {
     try {
       const saved = localStorage.getItem(key);
-
       if (saved !== null) {
         const value = JSON.parse(saved);
         if (Array.isArray(value)) return value;
@@ -95,27 +70,21 @@
     return fallback.map(item => ({ ...item }));
   }
 
-  let tasks = loadArray(KEYS.tasks, defaultTasks).map(task => ({
-    ...task,
-    description: task.description || "",
-    project: task.project || "",
-    priority: PRIORITIES[task.priority] ? task.priority : "medium",
-    dueDate: task.dueDate || "",
-    status: task.status === "progress"
-      ? "in-progress"
-      : STATUSES.includes(task.status)
-        ? task.status
-        : "todo",
-    createdAt: task.createdAt || Date.now()
-  }));
-
+  let tasks = loadArray(KEYS.tasks, defaultTasks);
   let projects = loadArray(KEYS.projects, defaultProjects);
-
   let searchText = "";
   let statusFilter = "all";
-  let activeView = "all";
-  let activeProject = "";
   let toastTimer;
+
+  const $ = (selector, root = document) => root.querySelector(selector);
+
+  const escapeHTML = value => String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
 
   function save() {
     try {
@@ -135,7 +104,6 @@
     toast.classList.add("visible");
 
     clearTimeout(toastTimer);
-
     toastTimer = setTimeout(() => {
       toast.classList.remove("visible");
     }, 2600);
@@ -149,13 +117,8 @@
     modal.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
 
-    const input = modal.querySelector(
-      "input:not([type='hidden']), textarea"
-    );
-
-    if (input) {
-      setTimeout(() => input.focus(), 50);
-    }
+    const input = modal.querySelector("input:not([type='hidden'])");
+    if (input) setTimeout(() => input.focus(), 50);
   }
 
   function closeModal(id) {
@@ -165,129 +128,123 @@
     modal.classList.remove("is-open");
     modal.setAttribute("aria-hidden", "true");
 
-    if (!$(".modal.is-open")) {
+    if (!document.querySelector(".modal-backdrop.is-open")) {
       document.body.style.overflow = "";
     }
   }
 
   function closeAllModals() {
-    $$(".modal.is-open").forEach(modal => closeModal(modal.id));
+    document.querySelectorAll(".modal-backdrop.is-open").forEach(modal => {
+      closeModal(modal.id);
+    });
   }
 
-  function renderProjectOptions(selected = "") {
+  function renderProjectOptions() {
     const select = $("#taskProject");
     if (!select) return;
 
-    select.innerHTML = [
-      '<option value="">No Project</option>',
-      ...projects.map(project =>
-        `<option value="${escapeHTML(project.name)}">${
-          escapeHTML(project.name)
-        }</option>`
-      )
-    ].join("");
+    const previousValue = select.value;
 
-    select.value = selected;
+    select.innerHTML = projects.length
+      ? projects.map(project => `
+          <option value="${escapeHTML(project.name)}">
+            ${escapeHTML(project.name)}
+          </option>
+        `).join("")
+      : '<option value="General">General</option>';
+
+    if (projects.some(project => project.name === previousValue)) {
+      select.value = previousValue;
+    }
   }
 
   function renderSidebarProjects() {
-    const container = $("#projectList");
+    const container = $("#sidebarProjects");
     if (!container) return;
 
     if (!projects.length) {
-      container.innerHTML =
-        '<p class="empty-projects">No projects yet.</p>';
+      container.innerHTML = '<p class="empty-state">No projects yet.</p>';
       return;
     }
 
     container.innerHTML = projects.map(project => `
-      <button
-        class="project-nav-item"
-        type="button"
-        data-action="filter-project"
-        data-project="${escapeHTML(project.name)}"
-      >
+      <button class="sidebar-project" type="button"
+              data-action="filter-project"
+              data-project="${escapeHTML(project.name)}">
         <span class="project-dot"
-          style="background:${escapeHTML(project.color || COLORS[0])}">
-        </span>
+              style="background:${escapeHTML(project.color || COLORS[0])}"></span>
         <span>${escapeHTML(project.name)}</span>
-        <span class="project-nav-count">${
-          tasks.filter(task => task.project === project.name).length
-        }</span>
       </button>
     `).join("");
   }
 
-  function getVisibleTasks() {
-    const query = searchText.toLowerCase();
+  function renderProjects() {
+    const container = $("#projectsList");
+    if (!container) return;
 
+    if (!projects.length) {
+      container.innerHTML = `
+        <div class="project-card">
+          <h4>No projects yet</h4>
+          <p>Create a project to organize your tasks.</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = projects.map(project => {
+      const related = tasks.filter(task => task.project === project.name);
+      const done = related.filter(task => task.status === "completed").length;
+      const percentage = related.length
+        ? Math.round(done / related.length * 100)
+        : 0;
+
+      return `
+        <article class="project-card">
+          <div class="project-card-top">
+            <div class="project-color"
+                 style="background:${escapeHTML(project.color || COLORS[0])}"></div>
+            <button class="project-menu" type="button"
+                    data-action="delete-project"
+                    data-id="${escapeHTML(project.id)}"
+                    aria-label="Delete project"
+                    title="Delete project">⋯</button>
+          </div>
+          <h4>${escapeHTML(project.name)}</h4>
+          <p>${related.length} ${related.length === 1 ? "task" : "tasks"}</p>
+          <div class="project-progress">
+            <div class="project-progress-bar" style="width:${percentage}%"></div>
+          </div>
+          <div class="project-meta">
+            <span>${percentage}% completed</span>
+            <span>${done}/${related.length}</span>
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
+
+  function visibleTasks() {
     return tasks.filter(task => {
-      const matchesSearch = [
+      const query = searchText.toLowerCase();
+
+      const matchesText = [
         task.title,
-        task.description,
         task.project,
         task.priority
-      ].some(value =>
-        String(value || "").toLowerCase().includes(query)
-      );
+      ].some(value => String(value || "").toLowerCase().includes(query));
 
       const matchesStatus =
         statusFilter === "all" || task.status === statusFilter;
 
-      const matchesProject =
-        !activeProject || task.project === activeProject;
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const due = task.dueDate
-        ? new Date(task.dueDate + "T00:00:00")
-        : null;
-
-      const matchesView =
-        activeView === "all" ||
-        (activeView === "today" &&
-          due && due.getTime() === today.getTime()) ||
-        (activeView === "upcoming" &&
-          due && due.getTime() > today.getTime() &&
-          task.status !== "completed") ||
-        (activeView === "completed" &&
-          task.status === "completed");
-
-      return matchesSearch &&
-        matchesStatus &&
-        matchesProject &&
-        matchesView;
+      return matchesText && matchesStatus;
     });
   }
 
-  function sortTasks(list) {
-    const mode = $("#sortSelect")?.value || "created";
-    const result = [...list];
+  function formatDate(dateString) {
+    if (!dateString) return "";
 
-    if (mode === "due") {
-      result.sort((a, b) =>
-        (a.dueDate || "9999-12-31")
-          .localeCompare(b.dueDate || "9999-12-31")
-      );
-    } else if (mode === "priority") {
-      const rank = { high: 0, medium: 1, low: 2 };
-      result.sort((a, b) =>
-        rank[a.priority] - rank[b.priority]
-      );
-    } else if (mode === "title") {
-      result.sort((a, b) => a.title.localeCompare(b.title));
-    } else {
-      result.sort((a, b) => b.createdAt - a.createdAt);
-    }
-
-    return result;
-  }
-
-  function formatDate(value) {
-    if (!value) return "";
-
-    const date = new Date(value + "T00:00:00");
+    const date = new Date(dateString + "T00:00:00");
     if (Number.isNaN(date.getTime())) return "";
 
     return date.toLocaleDateString(undefined, {
@@ -297,128 +254,83 @@
     });
   }
 
-  function isOverdue(task) {
-    if (!task.dueDate || task.status === "completed") return false;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return new Date(task.dueDate + "T00:00:00") < today;
-  }
-
   function renderTask(task) {
-    const priority = PRIORITIES[task.priority]
-      ? task.priority
-      : "medium";
+    const priority = PRIORITIES[task.priority] ? task.priority : "medium";
 
     const nextStatus = {
-      todo: "in-progress",
-      "in-progress": "completed",
+      todo: "progress",
+      progress: "completed",
       completed: "todo"
-    }[task.status];
+    }[task.status] || "todo";
 
     const actionLabel = {
       todo: "Start task →",
-      "in-progress": "Mark completed ✓",
+      progress: "Mark completed ✓",
       completed: "Reopen task ↻"
-    }[task.status];
+    }[task.status] || "Start task →";
 
     return `
-      <article class="task-card" data-task-id="${escapeHTML(task.id)}">
+      <article class="task-card">
         <div class="task-card-header">
           <h5>${escapeHTML(task.title)}</h5>
-          <div class="task-card-actions">
-            <button
-              class="task-edit"
-              type="button"
-              data-action="edit-task"
-              data-id="${escapeHTML(task.id)}"
-              aria-label="Edit task"
-              title="Edit task"
-            >✎</button>
-            <button
-              class="task-delete"
-              type="button"
-              data-action="delete-task"
-              data-id="${escapeHTML(task.id)}"
-              aria-label="Delete task"
-              title="Delete task"
-            >×</button>
-          </div>
+          <button class="task-delete" type="button"
+                  data-action="delete-task"
+                  data-id="${escapeHTML(task.id)}"
+                  aria-label="Delete ${escapeHTML(task.title)}"
+                  title="Delete task">×</button>
         </div>
 
-        ${task.description
-          ? `<p class="task-description">${
-              escapeHTML(task.description)
-            }</p>`
-          : ""}
-
-        <div class="task-project">
-          ${escapeHTML(task.project || "No Project")}
-        </div>
+        <div class="task-project">${escapeHTML(task.project || "General")}</div>
 
         <div class="task-footer">
           <span class="priority ${priority}">
             ${PRIORITIES[priority]}
           </span>
           ${task.dueDate
-            ? `<span class="task-date ${
-                isOverdue(task) ? "overdue" : ""
-              }">${escapeHTML(formatDate(task.dueDate))}${
-                isOverdue(task) ? " · Overdue" : ""
-              }</span>`
+            ? `<span class="task-date">${escapeHTML(formatDate(task.dueDate))}</span>`
             : ""}
         </div>
 
-        <button
-          class="task-status-button"
-          type="button"
-          data-action="move-task"
-          data-id="${escapeHTML(task.id)}"
-          data-status="${nextStatus}"
-        >${actionLabel}</button>
+        <button class="task-status-button" type="button"
+                data-action="move-task"
+                data-id="${escapeHTML(task.id)}"
+                data-status="${nextStatus}">
+          ${actionLabel}
+        </button>
       </article>
     `;
   }
 
   function renderTasks() {
-    const filtered = sortTasks(getVisibleTasks());
+    const filtered = visibleTasks();
 
-    const columns = {
-      todo: {
-        list: "#todoList",
-        count: "#todoCount"
-      },
-      "in-progress": {
-        list: "#inProgressList",
-        count: "#inProgressCount"
-      },
-      completed: {
-        list: "#completedList",
-        count: "#completedCount"
-      }
-    };
+    for (const status of STATUSES) {
+      const column = $("#" + ({
+        todo: "todoTasks",
+        progress: "progressTasks",
+        completed: "completedTasks"
+      })[status]);
 
-    for (const [status, config] of Object.entries(columns)) {
-      const columnTasks = filtered.filter(
-        task => task.status === status
-      );
+      const count = $("#" + ({
+        todo: "todoColumnCount",
+        progress: "progressColumnCount",
+        completed: "completedColumnCount"
+      })[status]);
 
-      const list = $(config.list);
-      const count = $(config.count);
+      const columnTasks = filtered.filter(task => task.status === status);
 
-      if (list) {
-        list.innerHTML = columnTasks.length
+      if (column) {
+        column.innerHTML = columnTasks.length
           ? columnTasks.map(renderTask).join("")
-          : '<p class="empty-column">No tasks here yet.</p>';
+          : '<p class="empty-state">No tasks here yet.</p>';
       }
 
       if (count) count.textContent = columnTasks.length;
     }
 
-    const emptyState = $("#emptyState");
-    if (emptyState) {
-      emptyState.hidden = filtered.length > 0;
+    const emptyMessage = $("#emptySearchMessage");
+    if (emptyMessage) {
+      emptyMessage.hidden = !(searchText && filtered.length === 0);
     }
 
     renderStats();
@@ -426,87 +338,31 @@
 
   function renderStats() {
     const total = tasks.length;
-    const inProgress = tasks.filter(
-      task => task.status === "in-progress"
-    ).length;
-    const completed = tasks.filter(
-      task => task.status === "completed"
-    ).length;
-    const overdue = tasks.filter(isOverdue).length;
     const todo = tasks.filter(task => task.status === "todo").length;
+    const progress = tasks.filter(task => task.status === "progress").length;
+    const completed = tasks.filter(task => task.status === "completed").length;
+    const rate = total ? Math.round(completed / total * 100) : 0;
 
-    if ($("#totalTasks")) $("#totalTasks").textContent = total;
-    if ($("#inProgressTasks")) {
-      $("#inProgressTasks").textContent = inProgress;
-    }
-    if ($("#completedTasks")) {
-      $("#completedTasks").textContent = completed;
-    }
-    if ($("#overdueTasks")) $("#overdueTasks").textContent = overdue;
-    if ($("#todoCount")) $("#todoCount").textContent =
-      tasks.filter(task => task.status === "todo").length;
-    if ($("#allTasksNavCount")) {
-      $("#allTasksNavCount").textContent = total;
-    }
-
-    // Keep the To Do count correct even when a filter is active.
-    const todoCount = $("#todoCount");
-    if (todoCount) todoCount.textContent = todo;
+    $("#totalTasks").textContent = total;
+    $("#todoCount").textContent = todo;
+    $("#progressCount").textContent = progress;
+    $("#completedCount").textContent = completed;
+    $("#completionRate").textContent = rate + "%";
   }
 
   function renderAll() {
-    renderProjectOptions($("#taskProject")?.value || "");
+    renderProjectOptions();
     renderSidebarProjects();
+    renderProjects();
     renderTasks();
   }
 
-  function resetTaskForm() {
-    $("#taskForm")?.reset();
-    if ($("#taskId")) $("#taskId").value = "";
-    if ($("#taskModalTitle")) {
-      $("#taskModalTitle").textContent = "Create a New Task";
-    }
-    if ($("#saveTaskBtn")) {
-      $("#saveTaskBtn").textContent = "Save Task";
-    }
-    renderProjectOptions();
-  }
-
-  function openNewTask() {
-    resetTaskForm();
-    openModal("taskModal");
-  }
-
-  function editTask(id) {
-    const task = tasks.find(item => item.id === id);
-    if (!task) return;
-
-    const form = $("#taskForm");
-    if (!form) return;
-
-    $("#taskId").value = task.id;
-    $("#taskTitle").value = task.title;
-    $("#taskDescription").value = task.description || "";
-    $("#taskStatus").value = task.status;
-    $("#taskPriority").value = task.priority;
-    $("#taskDueDate").value = task.dueDate || "";
-
-    renderProjectOptions(task.project || "");
-
-    if ($("#taskModalTitle")) {
-      $("#taskModalTitle").textContent = "Edit Task";
-    }
-    if ($("#saveTaskBtn")) {
-      $("#saveTaskBtn").textContent = "Save Changes";
-    }
-
-    openModal("taskModal");
-  }
-
-  function saveTask(event) {
+  function addTask(event) {
     event.preventDefault();
 
-    const title = $("#taskTitle").value.trim();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const title = String(data.get("title") || "").trim();
 
     if (!title) {
       $("#taskTitle").focus();
@@ -514,58 +370,45 @@
       return;
     }
 
-    const id = $("#taskId").value;
-    const existing = tasks.find(task => task.id === id);
+    const project = String(data.get("project") || "General");
+    const priority = String(data.get("priority") || "medium");
+    const status = String(data.get("status") || "todo");
 
-    const taskData = {
+    tasks.unshift({
+      id: "task-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
       title,
-      description: $("#taskDescription").value.trim(),
-      project: $("#taskProject").value,
-      priority: $("#taskPriority").value,
-      dueDate: $("#taskDueDate").value,
-      status: $("#taskStatus").value
-    };
-
-    if (!STATUSES.includes(taskData.status)) {
-      taskData.status = "todo";
-    }
-
-    if (!PRIORITIES[taskData.priority]) {
-      taskData.priority = "medium";
-    }
-
-    if (existing) {
-      Object.assign(existing, taskData);
-      showToast("Task updated successfully.");
-    } else {
-      tasks.unshift({
-        id: "task-" + Date.now() + "-" +
-          Math.random().toString(36).slice(2, 7),
-        ...taskData,
-        createdAt: Date.now()
-      });
-      showToast("Task created successfully.");
-    }
+      project,
+      priority: PRIORITIES[priority] ? priority : "medium",
+      dueDate: String(data.get("dueDate") || ""),
+      status: STATUSES.includes(status) ? status : "todo",
+      createdAt: Date.now()
+    });
 
     closeModal("taskModal");
-    resetTaskForm();
+    form.reset();
     save();
     renderAll();
+    showToast("Task created successfully.");
   }
 
-  function saveProject(event) {
+  function addProject(event) {
     event.preventDefault();
 
-    const name = $("#projectName").value.trim();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const name = String(data.get("name") || "").trim();
+
     if (!name) {
       $("#projectName").focus();
       showToast("Please enter a project name.");
       return;
     }
 
-    if (projects.some(project =>
+    const duplicate = projects.some(project =>
       project.name.toLowerCase() === name.toLowerCase()
-    )) {
+    );
+
+    if (duplicate) {
       showToast("A project with this name already exists.");
       return;
     }
@@ -573,11 +416,11 @@
     projects.push({
       id: "project-" + Date.now(),
       name,
-      color: $("#projectColor").value || COLORS[0]
+      color: String(data.get("color") || COLORS[0])
     });
 
     closeModal("projectModal");
-    $("#projectForm").reset();
+    form.reset();
     save();
     renderAll();
     showToast("Project created successfully.");
@@ -587,9 +430,7 @@
     const task = tasks.find(item => item.id === id);
     if (!task) return;
 
-    if (!confirm(`Delete task "${task.title}"? This cannot be undone.`)) {
-      return;
-    }
+    if (!confirm(`Delete task "${task.title}"?`)) return;
 
     tasks = tasks.filter(item => item.id !== id);
     save();
@@ -611,78 +452,25 @@
     const project = projects.find(item => item.id === id);
     if (!project) return;
 
-    const relatedCount = tasks.filter(
-      task => task.project === project.name
-    ).length;
-
+    const relatedCount = tasks.filter(task => task.project === project.name).length;
     const message = relatedCount
-      ? `Delete "${project.name}"? Its ${relatedCount} task(s) will become unassigned.`
+      ? `Delete "${project.name}"? Its ${relatedCount} related task(s) will move to General.`
       : `Delete project "${project.name}"?`;
 
     if (!confirm(message)) return;
 
     tasks.forEach(task => {
-      if (task.project === project.name) task.project = "";
+      if (task.project === project.name) task.project = "General";
     });
 
     projects = projects.filter(item => item.id !== id);
-
-    if (activeProject === project.name) {
-      activeProject = "";
-      activeView = "all";
-    }
-
     save();
     renderAll();
     showToast("Project deleted.");
   }
 
-  function setView(view, project = "") {
-    activeView = view;
-    activeProject = project;
-    statusFilter = "all";
-
-    if ($("#statusFilter")) $("#statusFilter").value = "all";
-
-    $$(".nav-item").forEach(item => {
-      item.classList.toggle(
-        "active",
-        item.dataset.filter === view &&
-          !project
-      );
-    });
-
-    const title = project || ({
-      all: "All Tasks",
-      today: "Today",
-      upcoming: "Upcoming",
-      completed: "Completed"
-    }[view] || "All Tasks");
-
-    if ($("#currentViewTitle")) {
-      $("#currentViewTitle").textContent = title;
-    }
-    if ($("#pageTitle")) {
-      $("#pageTitle").textContent = project
-        ? project
-        : view === "all"
-          ? "Manage your tasks"
-          : title;
-    }
-    if ($("#taskSectionTitle")) {
-      $("#taskSectionTitle").textContent = project
-        ? project + " Tasks"
-        : view === "all"
-          ? "My Tasks"
-          : title + " Tasks";
-    }
-
-    renderTasks();
-  }
-
   function toggleTheme() {
-    const current =
-      document.documentElement.dataset.theme || "light";
+    const current = document.documentElement.dataset.theme || "light";
     const next = current === "dark" ? "light" : "dark";
 
     document.documentElement.dataset.theme = next;
@@ -695,12 +483,16 @@
 
     const button = $("#themeToggle");
     if (button) {
-      button.textContent = next === "dark" ? "☀" : "◐";
+      button.textContent = next === "dark" ? "☀" : "☾";
+      button.setAttribute(
+        "aria-label",
+        next === "dark" ? "Switch to light mode" : "Switch to dark mode"
+      );
     }
 
-    const meta = $('meta[name="theme-color"]');
-    if (meta) {
-      meta.content = next === "dark" ? "#141622" : "#f6f7fb";
+    const metaTheme = $('meta[name="theme-color"]');
+    if (metaTheme) {
+      metaTheme.content = next === "dark" ? "#141622" : "#f5f7fb";
     }
   }
 
@@ -713,100 +505,127 @@
       console.warn("Could not read theme preference.", error);
     }
 
-    document.documentElement.dataset.theme =
-      theme === "dark" ? "dark" : "light";
+    document.documentElement.dataset.theme = theme;
 
     const button = $("#themeToggle");
-    if (button) {
-      button.textContent = theme === "dark" ? "☀" : "◐";
-    }
+    if (button) button.textContent = theme === "dark" ? "☀" : "☾";
+  }
+
+  function updateTodayLabel() {
+    const label = $("#todayLabel");
+    if (!label) return;
+
+    label.textContent = new Intl.DateTimeFormat(undefined, {
+      weekday: "long",
+      month: "long",
+      day: "numeric"
+    }).format(new Date()).toUpperCase();
   }
 
   function bindEvents() {
-    $("#addTaskBtn")?.addEventListener("click", openNewTask);
-    $("#headerAddTaskBtn")?.addEventListener("click", openNewTask);
+    // All New Task buttons.
+    [
+      "#addTaskBtn",
+      "#headerAddTaskBtn"
+    ].forEach(selector => {
+      $(selector).addEventListener("click", () => {
+        renderProjectOptions();
+        openModal("taskModal");
+      });
+    });
 
+    // All New Project buttons.
     [
       "#addProjectBtn",
-      "#sidebarAddProjectBtn",
-      "#welcomeAddProjectBtn"
+      "#welcomeAddProjectBtn",
+      "#sidebarAddProjectBtn"
     ].forEach(selector => {
-      $(selector)?.addEventListener("click", () => {
-        $("#projectForm")?.reset();
+      $(selector).addEventListener("click", () => {
         openModal("projectModal");
       });
     });
 
-    $("#taskForm")?.addEventListener("submit", saveTask);
-    $("#projectForm")?.addEventListener("submit", saveProject);
-    $("#themeToggle")?.addEventListener("click", toggleTheme);
+    $("#taskForm").addEventListener("submit", addTask);
+    $("#projectForm").addEventListener("submit", addProject);
 
-    $("#searchInput")?.addEventListener("input", event => {
+    $("#closeTaskModalBtn").addEventListener("click", () => closeModal("taskModal"));
+    $("#cancelTaskBtn").addEventListener("click", () => closeModal("taskModal"));
+
+    $("#closeProjectModalBtn").addEventListener("click", () => closeModal("projectModal"));
+    $("#cancelProjectBtn").addEventListener("click", () => closeModal("projectModal"));
+
+    $("#themeToggle").addEventListener("click", toggleTheme);
+
+    $("#searchInput").addEventListener("input", event => {
       searchText = event.target.value.trim().toLowerCase();
       renderTasks();
     });
 
-    $("#statusFilter")?.addEventListener("change", event => {
+    $("#statusFilter").addEventListener("change", event => {
       statusFilter = event.target.value;
       renderTasks();
     });
 
-    $("#sortSelect")?.addEventListener("change", renderTasks);
-
-    $$(".nav-item[data-filter]").forEach(button => {
-      button.addEventListener("click", () => {
-        setView(button.dataset.filter);
-      });
-    });
-
+    // One delegated listener handles task and project card actions.
     document.addEventListener("click", event => {
-      const closeButton = event.target.closest("[data-close-modal]");
-      if (closeButton) {
-        closeModal(closeButton.dataset.closeModal);
-        return;
-      }
-
       const button = event.target.closest("[data-action]");
       if (!button) return;
 
       const { action, id, status, project } = button.dataset;
 
-      if (action === "edit-task") editTask(id);
       if (action === "delete-task") deleteTask(id);
       if (action === "move-task") moveTask(id, status);
       if (action === "delete-project") deleteProject(id);
 
       if (action === "filter-project") {
-        setView("all", project || "");
+        searchText = String(project || "").toLowerCase();
+        $("#searchInput").value = project || "";
+        statusFilter = "all";
+        $("#statusFilter").value = "all";
+        renderTasks();
+        $("#task-board").scrollIntoView({ behavior: "smooth" });
       }
     });
 
-    document.addEventListener("click", event => {
-      const backdrop = event.target.closest(".modal-backdrop");
-      if (backdrop && event.target === backdrop) {
-        const modal = backdrop.closest(".modal");
-        if (modal) closeModal(modal.id);
-      }
+    // Clicking the dark backdrop closes the relevant dialog.
+    document.querySelectorAll(".modal-backdrop").forEach(modal => {
+      modal.addEventListener("click", event => {
+        if (event.target === modal) closeModal(modal.id);
+      });
     });
 
+    // Escape closes open dialogs; Ctrl/Cmd+K focuses search.
     document.addEventListener("keydown", event => {
       if (event.key === "Escape") closeAllModals();
 
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        event.key.toLowerCase() === "k"
-      ) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        $("#searchInput")?.focus();
+        $("#searchInput").focus();
       }
+    });
+
+    // Keep the sidebar navigation active while navigating.
+    document.querySelectorAll(".nav-link").forEach(link => {
+      link.addEventListener("click", () => {
+        document.querySelectorAll(".nav-link").forEach(item => {
+          item.classList.remove("active");
+        });
+        link.classList.add("active");
+      });
     });
   }
 
   function initialize() {
-    bindEvents();
-    initializeTheme();
-    renderAll();
-    console.info("TaskFlow initialized successfully.");
+    try {
+      bindEvents();
+      initializeTheme();
+      updateTodayLabel();
+      renderAll();
+      console.info("TaskFlow initialized successfully.");
+    } catch (error) {
+      console.error("TaskFlow initialization failed:", error);
+      showToast("TaskFlow could not initialize. Check the browser console.");
+    }
   }
 
   document.addEventListener("DOMContentLoaded", initialize);
