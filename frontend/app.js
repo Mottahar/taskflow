@@ -1,683 +1,632 @@
 
-/* =========================================================
-   TaskFlow
-   Developed by Hussein Motahar
-   Task and Project Management Dashboard
-   ========================================================= */
-
 "use strict";
 
-const TaskFlow = (() => {
-    const STORAGE = {
-        tasks: "taskflow_tasks",
-        projects: "taskflow_projects",
-        theme: "taskflow_theme"
-    };
+/* TaskFlow | Developed by Hussein Motahar */
 
-    const STATUS = {
-        TODO: "todo",
-        PROGRESS: "progress",
-        COMPLETED: "completed"
-    };
+(() => {
+  const KEYS = {
+    tasks: "taskflow_tasks",
+    projects: "taskflow_projects",
+    theme: "taskflow_theme"
+  };
 
-    const PRIORITY_LABELS = {
-        high: "High",
-        medium: "Medium",
-        low: "Low"
-    };
+  const STATUSES = ["todo", "progress", "completed"];
 
-    const DEFAULT_PROJECTS = [
-        { id: "project-1", name: "Website Redesign", color: "#6366f1" },
-        { id: "project-2", name: "Personal Goals", color: "#14b8a6" },
-        { id: "project-3", name: "Learning", color: "#f59e0b" }
-    ];
+  const PRIORITIES = {
+    high: "High",
+    medium: "Medium",
+    low: "Low"
+  };
 
-    const DEFAULT_TASKS = [
-        {
-            id: "task-1",
-            title: "Design the dashboard",
-            project: "Website Redesign",
-            priority: "high",
-            dueDate: "",
-            status: "todo",
-            createdAt: Date.now()
-        },
-        {
-            id: "task-2",
-            title: "Review project requirements",
-            project: "Website Redesign",
-            priority: "medium",
-            dueDate: "",
-            status: "progress",
-            createdAt: Date.now()
-        },
-        {
-            id: "task-3",
-            title: "Organize weekly goals",
-            project: "Personal Goals",
-            priority: "low",
-            dueDate: "",
-            status: "completed",
-            createdAt: Date.now()
-        }
-    ];
+  const COLORS = ["#7065f0", "#2589ed", "#12a594", "#e99a35", "#e15c79"];
 
-    let tasks = loadData(STORAGE.tasks, DEFAULT_TASKS);
-    let projects = loadData(STORAGE.projects, DEFAULT_PROJECTS);
+  const defaultProjects = [
+    { id: "p1", name: "Website Redesign", color: COLORS[0] },
+    { id: "p2", name: "Personal Goals", color: COLORS[2] },
+    { id: "p3", name: "Learning", color: COLORS[3] }
+  ];
 
-    let searchTerm = "";
-    let statusFilter = "all";
+  const defaultTasks = [
+    {
+      id: "t1",
+      title: "Design the dashboard",
+      project: "Website Redesign",
+      priority: "high",
+      dueDate: "",
+      status: "todo",
+      createdAt: Date.now()
+    },
+    {
+      id: "t2",
+      title: "Review project requirements",
+      project: "Website Redesign",
+      priority: "medium",
+      dueDate: "",
+      status: "progress",
+      createdAt: Date.now()
+    },
+    {
+      id: "t3",
+      title: "Organize weekly goals",
+      project: "Personal Goals",
+      priority: "low",
+      dueDate: "",
+      status: "completed",
+      createdAt: Date.now()
+    }
+  ];
 
-    function loadData(key, fallback) {
-        try {
-            const saved = localStorage.getItem(key);
-
-            if (saved !== null) {
-                const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed)) return parsed;
-            }
-        } catch (error) {
-            console.warn("TaskFlow could not read saved data:", error);
-        }
-
-        return fallback.map(item => ({ ...item }));
+  function loadArray(key, fallback) {
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved !== null) {
+        const value = JSON.parse(saved);
+        if (Array.isArray(value)) return value;
+      }
+    } catch (error) {
+      console.error("Could not load " + key, error);
     }
 
-    function saveData() {
-        try {
-            localStorage.setItem(STORAGE.tasks, JSON.stringify(tasks));
-            localStorage.setItem(STORAGE.projects, JSON.stringify(projects));
-        } catch (error) {
-            console.error("TaskFlow could not save data:", error);
-        }
+    return fallback.map(item => ({ ...item }));
+  }
+
+  let tasks = loadArray(KEYS.tasks, defaultTasks);
+  let projects = loadArray(KEYS.projects, defaultProjects);
+  let searchText = "";
+  let statusFilter = "all";
+  let toastTimer;
+
+  const $ = (selector, root = document) => root.querySelector(selector);
+
+  const escapeHTML = value => String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
+
+  function save() {
+    try {
+      localStorage.setItem(KEYS.tasks, JSON.stringify(tasks));
+      localStorage.setItem(KEYS.projects, JSON.stringify(projects));
+    } catch (error) {
+      console.error("Could not save TaskFlow data", error);
+      showToast("Could not save data in this browser.");
+    }
+  }
+
+  function showToast(message) {
+    const toast = $("#toast");
+    if (!toast) return;
+
+    toast.textContent = message;
+    toast.classList.add("visible");
+
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.classList.remove("visible");
+    }, 2600);
+  }
+
+  function openModal(id) {
+    const modal = $("#" + id);
+    if (!modal) return;
+
+    modal.classList.add("is-open");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+
+    const input = modal.querySelector("input:not([type='hidden'])");
+    if (input) setTimeout(() => input.focus(), 50);
+  }
+
+  function closeModal(id) {
+    const modal = $("#" + id);
+    if (!modal) return;
+
+    modal.classList.remove("is-open");
+    modal.setAttribute("aria-hidden", "true");
+
+    if (!document.querySelector(".modal-backdrop.is-open")) {
+      document.body.style.overflow = "";
+    }
+  }
+
+  function closeAllModals() {
+    document.querySelectorAll(".modal-backdrop.is-open").forEach(modal => {
+      closeModal(modal.id);
+    });
+  }
+
+  function renderProjectOptions() {
+    const select = $("#taskProject");
+    if (!select) return;
+
+    const previousValue = select.value;
+
+    select.innerHTML = projects.length
+      ? projects.map(project => `
+          <option value="${escapeHTML(project.name)}">
+            ${escapeHTML(project.name)}
+          </option>
+        `).join("")
+      : '<option value="General">General</option>';
+
+    if (projects.some(project => project.name === previousValue)) {
+      select.value = previousValue;
+    }
+  }
+
+  function renderSidebarProjects() {
+    const container = $("#sidebarProjects");
+    if (!container) return;
+
+    if (!projects.length) {
+      container.innerHTML = '<p class="empty-state">No projects yet.</p>';
+      return;
     }
 
-    function escapeHTML(value) {
-        return String(value ?? "").replace(/[&<>"']/g, char => ({
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#39;"
-        })[char]);
+    container.innerHTML = projects.map(project => `
+      <button class="sidebar-project" type="button"
+              data-action="filter-project"
+              data-project="${escapeHTML(project.name)}">
+        <span class="project-dot"
+              style="background:${escapeHTML(project.color || COLORS[0])}"></span>
+        <span>${escapeHTML(project.name)}</span>
+      </button>
+    `).join("");
+  }
+
+  function renderProjects() {
+    const container = $("#projectsList");
+    if (!container) return;
+
+    if (!projects.length) {
+      container.innerHTML = `
+        <div class="project-card">
+          <h4>No projects yet</h4>
+          <p>Create a project to organize your tasks.</p>
+        </div>
+      `;
+      return;
     }
 
-    function findElement(selectors) {
-        for (const selector of selectors) {
-            const element = document.querySelector(selector);
-            if (element) return element;
-        }
-        return null;
+    container.innerHTML = projects.map(project => {
+      const related = tasks.filter(task => task.project === project.name);
+      const done = related.filter(task => task.status === "completed").length;
+      const percentage = related.length
+        ? Math.round(done / related.length * 100)
+        : 0;
+
+      return `
+        <article class="project-card">
+          <div class="project-card-top">
+            <div class="project-color"
+                 style="background:${escapeHTML(project.color || COLORS[0])}"></div>
+            <button class="project-menu" type="button"
+                    data-action="delete-project"
+                    data-id="${escapeHTML(project.id)}"
+                    aria-label="Delete project"
+                    title="Delete project">⋯</button>
+          </div>
+          <h4>${escapeHTML(project.name)}</h4>
+          <p>${related.length} ${related.length === 1 ? "task" : "tasks"}</p>
+          <div class="project-progress">
+            <div class="project-progress-bar" style="width:${percentage}%"></div>
+          </div>
+          <div class="project-meta">
+            <span>${percentage}% completed</span>
+            <span>${done}/${related.length}</span>
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
+
+  function visibleTasks() {
+    return tasks.filter(task => {
+      const query = searchText.toLowerCase();
+
+      const matchesText = [
+        task.title,
+        task.project,
+        task.priority
+      ].some(value => String(value || "").toLowerCase().includes(query));
+
+      const matchesStatus =
+        statusFilter === "all" || task.status === statusFilter;
+
+      return matchesText && matchesStatus;
+    });
+  }
+
+  function formatDate(dateString) {
+    if (!dateString) return "";
+
+    const date = new Date(dateString + "T00:00:00");
+    if (Number.isNaN(date.getTime())) return "";
+
+    return date.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    });
+  }
+
+  function renderTask(task) {
+    const priority = PRIORITIES[task.priority] ? task.priority : "medium";
+
+    const nextStatus = {
+      todo: "progress",
+      progress: "completed",
+      completed: "todo"
+    }[task.status] || "todo";
+
+    const actionLabel = {
+      todo: "Start task →",
+      progress: "Mark completed ✓",
+      completed: "Reopen task ↻"
+    }[task.status] || "Start task →";
+
+    return `
+      <article class="task-card">
+        <div class="task-card-header">
+          <h5>${escapeHTML(task.title)}</h5>
+          <button class="task-delete" type="button"
+                  data-action="delete-task"
+                  data-id="${escapeHTML(task.id)}"
+                  aria-label="Delete ${escapeHTML(task.title)}"
+                  title="Delete task">×</button>
+        </div>
+
+        <div class="task-project">${escapeHTML(task.project || "General")}</div>
+
+        <div class="task-footer">
+          <span class="priority ${priority}">
+            ${PRIORITIES[priority]}
+          </span>
+          ${task.dueDate
+            ? `<span class="task-date">${escapeHTML(formatDate(task.dueDate))}</span>`
+            : ""}
+        </div>
+
+        <button class="task-status-button" type="button"
+                data-action="move-task"
+                data-id="${escapeHTML(task.id)}"
+                data-status="${nextStatus}">
+          ${actionLabel}
+        </button>
+      </article>
+    `;
+  }
+
+  function renderTasks() {
+    const filtered = visibleTasks();
+
+    for (const status of STATUSES) {
+      const column = $("#" + ({
+        todo: "todoTasks",
+        progress: "progressTasks",
+        completed: "completedTasks"
+      })[status]);
+
+      const count = $("#" + ({
+        todo: "todoColumnCount",
+        progress: "progressColumnCount",
+        completed: "completedColumnCount"
+      })[status]);
+
+      const columnTasks = filtered.filter(task => task.status === status);
+
+      if (column) {
+        column.innerHTML = columnTasks.length
+          ? columnTasks.map(renderTask).join("")
+          : '<p class="empty-state">No tasks here yet.</p>';
+      }
+
+      if (count) count.textContent = columnTasks.length;
     }
 
-    function getTaskColumn(status) {
-        const selectors = {
-            todo: [
-                "#todoTasks", "#todoList", "#todo-tasks",
-                "#todo-list", '[data-status="todo"]',
-                ".todo-tasks", ".todo-list", ".tasks-todo"
-            ],
-            progress: [
-                "#progressTasks", "#progressList",
-                "#inProgressTasks", "#in-progress-tasks",
-                '[data-status="progress"]',
-                ".progress-tasks", ".in-progress-tasks",
-                ".tasks-progress"
-            ],
-            completed: [
-                "#completedTasks", "#completedList",
-                "#doneTasks", "#completed-tasks",
-                '[data-status="completed"]',
-                ".completed-tasks", ".completed-list",
-                ".tasks-completed"
-            ]
-        };
-
-        const found = findElement(selectors[status]);
-        if (found) return found;
-
-        // Fallback: find a board column by its heading.
-        const headings = [...document.querySelectorAll("h2, h3, h4, h5")];
-        const words = {
-            todo: ["to do", "todo", "to-do"],
-            progress: ["in progress", "in-progress", "progress"],
-            completed: ["completed", "done"]
-        };
-
-        const heading = headings.find(item =>
-            words[status].some(word =>
-                item.textContent.trim().toLowerCase().includes(word)
-            )
-        );
-
-        if (heading) {
-            const column = heading.closest(
-                ".board-column, .kanban-column, .task-column, .column"
-            );
-
-            if (column) {
-                return column.querySelector(
-                    ".task-list, .tasks-list, .task-container, .tasks, [data-task-list]"
-                );
-            }
-        }
-
-        return null;
+    const emptyMessage = $("#emptySearchMessage");
+    if (emptyMessage) {
+      emptyMessage.hidden = !(searchText && filtered.length === 0);
     }
 
-    function getVisibleTasks() {
-        return tasks.filter(task => {
-            const matchesSearch = [
-                task.title,
-                task.project,
-                task.priority
-            ].some(value =>
-                String(value || "").toLowerCase().includes(searchTerm)
-            );
+    renderStats();
+  }
 
-            const matchesStatus =
-                statusFilter === "all" || task.status === statusFilter;
+  function renderStats() {
+    const total = tasks.length;
+    const todo = tasks.filter(task => task.status === "todo").length;
+    const progress = tasks.filter(task => task.status === "progress").length;
+    const completed = tasks.filter(task => task.status === "completed").length;
+    const rate = total ? Math.round(completed / total * 100) : 0;
 
-            return matchesSearch && matchesStatus;
-        });
+    $("#totalTasks").textContent = total;
+    $("#todoCount").textContent = todo;
+    $("#progressCount").textContent = progress;
+    $("#completedCount").textContent = completed;
+    $("#completionRate").textContent = rate + "%";
+  }
+
+  function renderAll() {
+    renderProjectOptions();
+    renderSidebarProjects();
+    renderProjects();
+    renderTasks();
+  }
+
+  function addTask(event) {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const title = String(data.get("title") || "").trim();
+
+    if (!title) {
+      $("#taskTitle").focus();
+      showToast("Please enter a task title.");
+      return;
     }
 
-    function formatDate(dateString) {
-        if (!dateString) return "";
+    const project = String(data.get("project") || "General");
+    const priority = String(data.get("priority") || "medium");
+    const status = String(data.get("status") || "todo");
 
-        const date = new Date(dateString + "T00:00:00");
-        if (Number.isNaN(date.getTime())) return escapeHTML(dateString);
+    tasks.unshift({
+      id: "task-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+      title,
+      project,
+      priority: PRIORITIES[priority] ? priority : "medium",
+      dueDate: String(data.get("dueDate") || ""),
+      status: STATUSES.includes(status) ? status : "todo",
+      createdAt: Date.now()
+    });
 
-        return date.toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "short",
-            day: "numeric"
-        });
+    closeModal("taskModal");
+    form.reset();
+    save();
+    renderAll();
+    showToast("Task created successfully.");
+  }
+
+  function addProject(event) {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const name = String(data.get("name") || "").trim();
+
+    if (!name) {
+      $("#projectName").focus();
+      showToast("Please enter a project name.");
+      return;
     }
 
-    function renderTask(task) {
-        const priority = PRIORITY_LABELS[task.priority]
-            ? task.priority
-            : "medium";
+    const duplicate = projects.some(project =>
+      project.name.toLowerCase() === name.toLowerCase()
+    );
 
-        const nextStatus = {
-            todo: "progress",
-            progress: "completed",
-            completed: "todo"
-        }[task.status] || "todo";
-
-        const nextLabel = {
-            todo: "Start",
-            progress: "Complete",
-            completed: "Reopen"
-        }[task.status] || "Start";
-
-        return `
-            <article class="task-card" data-task-id="${escapeHTML(task.id)}">
-                <div class="task-card-header">
-                    <h5>${escapeHTML(task.title)}</h5>
-                    <button
-                        type="button"
-                        class="task-delete"
-                        data-action="delete"
-                        data-id="${escapeHTML(task.id)}"
-                        aria-label="Delete task"
-                        title="Delete task"
-                    >&#215;</button>
-                </div>
-
-                <div class="task-project">
-                    ${escapeHTML(task.project || "General")}
-                </div>
-
-                <div class="task-footer">
-                    <span class="priority ${priority}">
-                        ${PRIORITY_LABELS[priority]}
-                    </span>
-
-                    ${task.dueDate ? `
-                        <span class="task-date">
-                            ${escapeHTML(formatDate(task.dueDate))}
-                        </span>
-                    ` : ""}
-                </div>
-
-                <button
-                    type="button"
-                    class="task-status-button"
-                    data-action="move"
-                    data-id="${escapeHTML(task.id)}"
-                    data-status="${nextStatus}"
-                >${nextLabel}</button>
-            </article>
-        `;
+    if (duplicate) {
+      showToast("A project with this name already exists.");
+      return;
     }
 
-    function renderTasks() {
-        const visibleTasks = getVisibleTasks();
+    projects.push({
+      id: "project-" + Date.now(),
+      name,
+      color: String(data.get("color") || COLORS[0])
+    });
 
-        const columns = {
-            todo: getTaskColumn("todo"),
-            progress: getTaskColumn("progress"),
-            completed: getTaskColumn("completed")
-        };
+    closeModal("projectModal");
+    form.reset();
+    save();
+    renderAll();
+    showToast("Project created successfully.");
+  }
 
-        Object.entries(columns).forEach(([status, column]) => {
-            if (!column) return;
+  function deleteTask(id) {
+    const task = tasks.find(item => item.id === id);
+    if (!task) return;
 
-            const columnTasks = visibleTasks.filter(
-                task => task.status === status
-            );
+    if (!confirm(`Delete task "${task.title}"?`)) return;
 
-            column.innerHTML = columnTasks.length
-                ? columnTasks.map(renderTask).join("")
-                : '<p class="empty-state">No tasks here yet.</p>';
-        });
+    tasks = tasks.filter(item => item.id !== id);
+    save();
+    renderAll();
+    showToast("Task deleted.");
+  }
 
-        renderStats();
+  function moveTask(id, status) {
+    const task = tasks.find(item => item.id === id);
+    if (!task || !STATUSES.includes(status)) return;
+
+    task.status = status;
+    save();
+    renderAll();
+    showToast("Task status updated.");
+  }
+
+  function deleteProject(id) {
+    const project = projects.find(item => item.id === id);
+    if (!project) return;
+
+    const relatedCount = tasks.filter(task => task.project === project.name).length;
+    const message = relatedCount
+      ? `Delete "${project.name}"? Its ${relatedCount} related task(s) will move to General.`
+      : `Delete project "${project.name}"?`;
+
+    if (!confirm(message)) return;
+
+    tasks.forEach(task => {
+      if (task.project === project.name) task.project = "General";
+    });
+
+    projects = projects.filter(item => item.id !== id);
+    save();
+    renderAll();
+    showToast("Project deleted.");
+  }
+
+  function toggleTheme() {
+    const current = document.documentElement.dataset.theme || "light";
+    const next = current === "dark" ? "light" : "dark";
+
+    document.documentElement.dataset.theme = next;
+
+    try {
+      localStorage.setItem(KEYS.theme, next);
+    } catch (error) {
+      console.warn("Could not save theme preference.", error);
     }
 
-    function setStat(selectors, value) {
-        const element = findElement(selectors);
-        if (element) element.textContent = String(value);
+    const button = $("#themeToggle");
+    if (button) {
+      button.textContent = next === "dark" ? "☀" : "☾";
+      button.setAttribute(
+        "aria-label",
+        next === "dark" ? "Switch to light mode" : "Switch to dark mode"
+      );
     }
 
-    function renderStats() {
-        const total = tasks.length;
-        const todo = tasks.filter(t => t.status === "todo").length;
-        const progress = tasks.filter(t => t.status === "progress").length;
-        const completed = tasks.filter(t => t.status === "completed").length;
+    const metaTheme = $('meta[name="theme-color"]');
+    if (metaTheme) {
+      metaTheme.content = next === "dark" ? "#141622" : "#f5f7fb";
+    }
+  }
 
-        setStat(
-            ["#totalTasks", "#total-tasks", "[data-stat='total']"],
-            total
-        );
+  function initializeTheme() {
+    let theme = "light";
 
-        setStat(
-            ["#todoCount", "#todo-count", "[data-stat='todo']"],
-            todo
-        );
-
-        setStat(
-            ["#progressCount", "#progress-count", "#inProgressCount",
-             "[data-stat='progress']"],
-            progress
-        );
-
-        setStat(
-            ["#completedCount", "#completed-count", "[data-stat='completed']"],
-            completed
-        );
-
-        setStat(
-            ["#completionRate", "#completion-rate", "[data-stat='rate']"],
-            total ? Math.round(completed / total * 100) + "%" : "0%"
-        );
+    try {
+      theme = localStorage.getItem(KEYS.theme) || "light";
+    } catch (error) {
+      console.warn("Could not read theme preference.", error);
     }
 
-    function renderProjects() {
-        const container = findElement([
-            "#projectsList",
-            "#projectList",
-            "#projectsContainer",
-            ".projects-list",
-            "[data-project-list]"
-        ]);
+    document.documentElement.dataset.theme = theme;
 
-        if (!container) return;
+    const button = $("#themeToggle");
+    if (button) button.textContent = theme === "dark" ? "☀" : "☾";
+  }
 
-        container.innerHTML = projects.map(project => {
-            const projectTasks = tasks.filter(
-                task => task.project === project.name
-            );
+  function updateTodayLabel() {
+    const label = $("#todayLabel");
+    if (!label) return;
 
-            const completed = projectTasks.filter(
-                task => task.status === "completed"
-            ).length;
+    label.textContent = new Intl.DateTimeFormat(undefined, {
+      weekday: "long",
+      month: "long",
+      day: "numeric"
+    }).format(new Date()).toUpperCase();
+  }
 
-            const percentage = projectTasks.length
-                ? Math.round(completed / projectTasks.length * 100)
-                : 0;
+  function bindEvents() {
+    // All New Task buttons.
+    [
+      "#addTaskBtn",
+      "#headerAddTaskBtn"
+    ].forEach(selector => {
+      $(selector).addEventListener("click", () => {
+        renderProjectOptions();
+        openModal("taskModal");
+      });
+    });
 
-            return `
-                <article class="project-card">
-                    <div class="project-color"
-                         style="background:${escapeHTML(project.color || "#6366f1")}">
-                    </div>
-                    <h4>${escapeHTML(project.name)}</h4>
-                    <p>${projectTasks.length} tasks</p>
-                    <div class="project-progress">
-                        <div class="project-progress-bar"
-                             style="width:${percentage}%"></div>
-                    </div>
-                    <small>${percentage}% completed</small>
-                </article>
-            `;
-        }).join("");
-    }
+    // All New Project buttons.
+    [
+      "#addProjectBtn",
+      "#welcomeAddProjectBtn",
+      "#sidebarAddProjectBtn"
+    ].forEach(selector => {
+      $(selector).addEventListener("click", () => {
+        openModal("projectModal");
+      });
+    });
 
-    function render() {
+    $("#taskForm").addEventListener("submit", addTask);
+    $("#projectForm").addEventListener("submit", addProject);
+
+    $("#closeTaskModalBtn").addEventListener("click", () => closeModal("taskModal"));
+    $("#cancelTaskBtn").addEventListener("click", () => closeModal("taskModal"));
+
+    $("#closeProjectModalBtn").addEventListener("click", () => closeModal("projectModal"));
+    $("#cancelProjectBtn").addEventListener("click", () => closeModal("projectModal"));
+
+    $("#themeToggle").addEventListener("click", toggleTheme);
+
+    $("#searchInput").addEventListener("input", event => {
+      searchText = event.target.value.trim().toLowerCase();
+      renderTasks();
+    });
+
+    $("#statusFilter").addEventListener("change", event => {
+      statusFilter = event.target.value;
+      renderTasks();
+    });
+
+    // One delegated listener handles task and project card actions.
+    document.addEventListener("click", event => {
+      const button = event.target.closest("[data-action]");
+      if (!button) return;
+
+      const { action, id, status, project } = button.dataset;
+
+      if (action === "delete-task") deleteTask(id);
+      if (action === "move-task") moveTask(id, status);
+      if (action === "delete-project") deleteProject(id);
+
+      if (action === "filter-project") {
+        searchText = String(project || "").toLowerCase();
+        $("#searchInput").value = project || "";
+        statusFilter = "all";
+        $("#statusFilter").value = "all";
         renderTasks();
-        renderProjects();
-        saveData();
-    }
+        $("#task-board").scrollIntoView({ behavior: "smooth" });
+      }
+    });
 
-    function addTask(form) {
-        const formData = new FormData(form);
+    // Clicking the dark backdrop closes the relevant dialog.
+    document.querySelectorAll(".modal-backdrop").forEach(modal => {
+      modal.addEventListener("click", event => {
+        if (event.target === modal) closeModal(modal.id);
+      });
+    });
 
-        const titleInput = form.querySelector(
-            '[name="title"], #taskTitle, #taskName'
-        );
+    // Escape closes open dialogs; Ctrl/Cmd+K focuses search.
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") closeAllModals();
 
-        const projectInput = form.querySelector(
-            '[name="project"], #taskProject'
-        );
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        $("#searchInput").focus();
+      }
+    });
 
-        const priorityInput = form.querySelector(
-            '[name="priority"], #taskPriority'
-        );
-
-        const dueDateInput = form.querySelector(
-            '[name="dueDate"], [name="due"], #taskDueDate, #taskDeadline'
-        );
-
-        const title = String(
-            titleInput?.value || formData.get("title") || ""
-        ).trim();
-
-        if (!title) {
-            if (titleInput) {
-                titleInput.focus();
-                titleInput.setCustomValidity("Please enter a task title.");
-                titleInput.reportValidity();
-            } else {
-                alert("Please enter a task title.");
-            }
-            return;
-        }
-
-        if (titleInput) titleInput.setCustomValidity("");
-
-        const project = String(
-            projectInput?.value || formData.get("project") || "General"
-        ).trim();
-
-        const priorityValue = String(
-            priorityInput?.value || formData.get("priority") || "medium"
-        ).toLowerCase();
-
-        const priority = PRIORITY_LABELS[priorityValue]
-            ? priorityValue
-            : "medium";
-
-        const dueDate = String(
-            dueDateInput?.value ||
-            formData.get("dueDate") ||
-            formData.get("due") ||
-            ""
-        );
-
-        const statusInput = form.querySelector(
-            '[name="status"], #taskStatus'
-        );
-
-        const requestedStatus = String(
-            statusInput?.value || "todo"
-        ).toLowerCase();
-
-        const status = ["todo", "progress", "completed"].includes(requestedStatus)
-            ? requestedStatus
-            : "todo";
-
-        tasks.unshift({
-            id: "task-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
-            title,
-            project: project || "General",
-            priority,
-            dueDate,
-            status,
-            createdAt: Date.now()
+    // Keep the sidebar navigation active while navigating.
+    document.querySelectorAll(".nav-link").forEach(link => {
+      link.addEventListener("click", () => {
+        document.querySelectorAll(".nav-link").forEach(item => {
+          item.classList.remove("active");
         });
+        link.classList.add("active");
+      });
+    });
+  }
 
-        if (project && !projects.some(p => p.name === project)) {
-            projects.push({
-                id: "project-" + Date.now(),
-                name: project,
-                color: "#6366f1"
-            });
-        }
-
-        form.reset();
-        closeModal();
-        render();
+  function initialize() {
+    try {
+      bindEvents();
+      initializeTheme();
+      updateTodayLabel();
+      renderAll();
+      console.info("TaskFlow initialized successfully.");
+    } catch (error) {
+      console.error("TaskFlow initialization failed:", error);
+      showToast("TaskFlow could not initialize. Check the browser console.");
     }
+  }
 
-    function deleteTask(id) {
-        const task = tasks.find(item => item.id === id);
-        if (!task) return;
-
-        if (!confirm(`Delete "${task.title}"?`)) return;
-
-        tasks = tasks.filter(item => item.id !== id);
-        render();
-    }
-
-    function moveTask(id, newStatus) {
-        const task = tasks.find(item => item.id === id);
-        if (!task) return;
-
-        if (!["todo", "progress", "completed"].includes(newStatus)) {
-            return;
-        }
-
-        task.status = newStatus;
-        render();
-    }
-
-    function openModal() {
-        const modal = findElement([
-            "#taskModal",
-            "#newTaskModal",
-            ".task-modal",
-            "[data-task-modal]"
-        ]);
-
-        if (!modal) {
-            const form = findElement(["#taskForm", "[data-task-form]"]);
-            if (form) {
-                const title = form.querySelector(
-                    '[name="title"], #taskTitle, #taskName'
-                );
-                title?.focus();
-            }
-            return;
-        }
-
-        modal.classList.add("active", "open", "show");
-        modal.setAttribute("aria-hidden", "false");
-    }
-
-    function closeModal() {
-        const modal = findElement([
-            "#taskModal",
-            "#newTaskModal",
-            ".task-modal",
-            "[data-task-modal]"
-        ]);
-
-        if (!modal) return;
-
-        modal.classList.remove("active", "open", "show");
-        modal.setAttribute("aria-hidden", "true");
-    }
-
-    function toggleTheme() {
-        const current = document.documentElement.getAttribute("data-theme")
-            || localStorage.getItem(STORAGE.theme)
-            || "light";
-
-        const next = current === "dark" ? "light" : "dark";
-
-        document.documentElement.setAttribute("data-theme", next);
-        document.body.classList.toggle("dark-mode", next === "dark");
-        document.body.classList.toggle("dark", next === "dark");
-
-        localStorage.setItem(STORAGE.theme, next);
-    }
-
-    function initializeTheme() {
-        let theme = "light";
-
-        try {
-            theme = localStorage.getItem(STORAGE.theme) || "light";
-        } catch (error) {
-            console.warn("TaskFlow could not load theme:", error);
-        }
-
-        document.documentElement.setAttribute("data-theme", theme);
-        document.body.classList.toggle("dark-mode", theme === "dark");
-        document.body.classList.toggle("dark", theme === "dark");
-    }
-
-    function addProject() {
-        const name = prompt("Enter the new project name:");
-        if (!name || !name.trim()) return;
-
-        const cleanName = name.trim();
-
-        if (projects.some(p =>
-            p.name.toLowerCase() === cleanName.toLowerCase()
-        )) {
-            alert("This project already exists.");
-            return;
-        }
-
-        projects.push({
-            id: "project-" + Date.now(),
-            name: cleanName,
-            color: "#6366f1"
-        });
-
-        renderProjects();
-        saveData();
-    }
-
-    function initialize() {
-        initializeTheme();
-
-        const search = findElement([
-            "#searchInput",
-            "#taskSearch",
-            "#searchTasks",
-            'input[type="search"]',
-            '[name="search"]'
-        ]);
-
-        if (search) {
-            search.addEventListener("input", () => {
-                searchTerm = search.value.trim().toLowerCase();
-                renderTasks();
-            });
-        }
-
-        const filter = findElement([
-            "#statusFilter",
-            "#taskFilter",
-            "#filterStatus",
-            '[name="statusFilter"]'
-        ]);
-
-        if (filter) {
-            filter.addEventListener("change", () => {
-                statusFilter = filter.value || "all";
-                renderTasks();
-            });
-        }
-
-        const form = findElement([
-            "#taskForm",
-            "#newTaskForm",
-            "[data-task-form]"
-        ]);
-
-        if (form) {
-            form.addEventListener("submit", event => {
-                event.preventDefault();
-                addTask(form);
-            });
-        }
-
-        // Delegated events for task actions and common buttons.
-        document.addEventListener("click", event => {
-            const target = event.target.closest("button, [data-action]");
-            if (!target) return;
-
-            const action = target.dataset.action;
-            const id = target.dataset.id;
-
-            if (action === "delete" && id) {
-                deleteTask(id);
-                return;
-            }
-
-            if (action === "move" && id) {
-                moveTask(id, target.dataset.status);
-                return;
-            }
-
-            if (
-                target.matches("#addTaskBtn, #newTaskBtn, [data-open-task-modal]")
-            ) {
-                openModal();
-                return;
-            }
-
-            if (
-                target.matches("#closeModal, #cancelTask, [data-close-modal]")
-            ) {
-                closeModal();
-                return;
-            }
-
-            if (
-                target.matches("#themeToggle, #darkModeToggle, [data-theme-toggle]")
-            ) {
-                toggleTheme();
-                return;
-            }
-
-            if (
-                target.matches("#addProjectBtn, #newProjectBtn, [data-add-project]")
-            ) {
-                addProject();
-            }
-        });
-
-        // Support modal close buttons and clicks on the backdrop.
-        document.addEventListener("click", event => {
-            const modal = event.target.closest(
-                "#taskModal, #newTaskModal, .task-modal, [data-task-modal]"
-            );
-
-            if (modal && event.target === modal) {
-                closeModal();
-            }
-        });
-
-        render();
-        console.info("TaskFlow initialized successfully.");
-    }
-
-    return {
-        initialize,
-        render,
-        addTask,
-        deleteTask,
-        moveTask,
-        openModal,
-        closeModal,
-        toggleTheme
-    };
+  document.addEventListener("DOMContentLoaded", initialize);
 })();
-
-document.addEventListener("DOMContentLoaded", TaskFlow.initialize);
