@@ -1,373 +1,249 @@
-```html
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>TaskFlow | Hussein Motahar</title>
-
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f7fb">
+  <meta name="description" content="TaskFlow project and task management dashboard">
+  <title>TaskFlow | Hussein Motahar</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
 </head>
-
 <body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="./" aria-label="TaskFlow home">
+        <span class="brand-icon">T</span>
+        <span>Task<span class="brand-accent">Flow</span></span>
+      </a>
 
-    <header class="topbar">
+      <div class="sidebar-label">WORKSPACE</div>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a class="nav-link active" href="#dashboard">
+          <span class="nav-icon">▦</span> Dashboard
+        </a>
+        <a class="nav-link" href="#projects">
+          <span class="nav-icon">▤</span> Projects
+        </a>
+        <a class="nav-link" href="#task-board">
+          <span class="nav-icon">☷</span> My Tasks
+        </a>
+      </nav>
 
-        <div class="brand">
-            <div class="logo">T</div>
+      <div class="sidebar-section-heading">
+        <span class="sidebar-label">YOUR PROJECTS</span>
+        <button id="sidebarAddProjectBtn" class="icon-button" type="button"
+                aria-label="Add project" title="Add project">+</button>
+      </div>
+      <div id="sidebarProjects" class="sidebar-projects"></div>
 
-            <div>
-                <h1>TaskFlow</h1>
-                <span>Project Management</span>
-            </div>
+      <div class="sidebar-bottom">
+        <div class="profile-avatar">HM</div>
+        <div class="profile-info">
+          <strong>Hussein Motahar</strong>
+          <span>Workspace owner</span>
         </div>
+        <button id="themeToggle" class="icon-button theme-toggle"
+                type="button" aria-label="Toggle dark mode" title="Toggle theme">☾</button>
+      </div>
+    </aside>
 
+    <main class="main-content" id="dashboard">
+      <header class="topbar">
+        <div class="breadcrumb">Workspace <span>/</span> Dashboard</div>
         <div class="topbar-actions">
+          <label class="search-box">
+            <span aria-hidden="true">⌕</span>
+            <input id="searchInput" type="search"
+                   placeholder="Search tasks or projects..." aria-label="Search tasks or projects">
+            <kbd>⌘ K</kbd>
+          </label>
+          <button id="headerAddTaskBtn" class="button button-primary" type="button">
+            <span>＋</span> New Task
+          </button>
+        </div>
+      </header>
 
-            <button id="themeToggle" class="icon-button">
-                🌙
-            </button>
+      <section class="welcome-section">
+        <div>
+          <p class="eyebrow" id="todayLabel">YOUR WORKSPACE</p>
+          <h1>Good work starts here<span class="heading-dot">.</span></h1>
+          <p class="welcome-subtitle">Plan your work, stay focused, and make progress every day.</p>
+        </div>
+        <button id="welcomeAddProjectBtn" class="button button-secondary" type="button">
+          ＋ New Project
+        </button>
+      </section>
 
-            <div class="user">
-                <div class="avatar">HM</div>
+      <section class="stats-grid" aria-label="Task statistics">
+        <article class="stat-card">
+          <div class="stat-top"><span>Total tasks</span><span class="stat-icon purple">▤</span></div>
+          <div class="stat-number" id="totalTasks">0</div>
+          <div class="stat-note">All tasks in your workspace</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-top"><span>To do</span><span class="stat-icon blue">◷</span></div>
+          <div class="stat-number" id="todoCount">0</div>
+          <div class="stat-note">Waiting to get started</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-top"><span>In progress</span><span class="stat-icon orange">↗</span></div>
+          <div class="stat-number" id="progressCount">0</div>
+          <div class="stat-note">Currently being worked on</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-top"><span>Completed</span><span class="stat-icon green">✓</span></div>
+          <div class="stat-number" id="completedCount">0</div>
+          <div class="stat-note"><span id="completionRate">0%</span> completion rate</div>
+        </article>
+      </section>
 
-                <div class="user-info">
-                    <strong>Hussein Motahar</strong>
-                    <span>Administrator</span>
-                </div>
-            </div>
+      <section class="projects-section" id="projects">
+        <div class="section-heading">
+          <div>
+            <h2>Your projects</h2>
+            <p>Keep related tasks organized in one place.</p>
+          </div>
+          <button id="addProjectBtn" class="text-button" type="button">＋ New Project</button>
+        </div>
+        <div id="projectsList" class="projects-grid"></div>
+      </section>
 
+      <section class="board-section" id="task-board">
+        <div class="section-heading board-heading">
+          <div>
+            <h2>Task board</h2>
+            <p>Move tasks forward, one step at a time.</p>
+          </div>
+          <div class="board-controls">
+            <label class="filter-label" for="statusFilter">Status</label>
+            <select id="statusFilter">
+              <option value="all">All statuses</option>
+              <option value="todo">To do</option>
+              <option value="progress">In progress</option>
+              <option value="completed">Completed</option>
+            </select>
+            <button id="addTaskBtn" class="button button-primary" type="button">＋ New Task</button>
+          </div>
         </div>
 
-    </header>
-
-
-    <main class="container">
-
-        <section class="welcome">
-
-            <div>
-                <p class="small-title">PROJECT MANAGEMENT</p>
-
-                <h2>
-                    Welcome back, Hussein 👋
-                </h2>
-
-                <p>
-                    Manage your projects and keep your tasks organized.
-                </p>
+        <div class="kanban-board">
+          <section class="board-column">
+            <div class="column-heading">
+              <span class="column-dot dot-todo"></span>
+              <h3>To do</h3>
+              <span id="todoColumnCount" class="column-count">0</span>
             </div>
+            <div id="todoTasks" class="task-list" data-status="todo"></div>
+          </section>
 
-            <button id="newTaskButton" class="primary-button">
-                + New Task
-            </button>
-
-        </section>
-
-
-        <section class="statistics">
-
-            <div class="stat-card">
-
-                <div class="stat-icon blue">
-                    📁
-                </div>
-
-                <div>
-                    <span>Total Projects</span>
-                    <strong id="totalProjects">0</strong>
-                </div>
-
+          <section class="board-column">
+            <div class="column-heading">
+              <span class="column-dot dot-progress"></span>
+              <h3>In progress</h3>
+              <span id="progressColumnCount" class="column-count">0</span>
             </div>
+            <div id="progressTasks" class="task-list" data-status="progress"></div>
+          </section>
 
-
-            <div class="stat-card">
-
-                <div class="stat-icon purple">
-                    📝
-                </div>
-
-                <div>
-                    <span>Total Tasks</span>
-                    <strong id="totalTasks">0</strong>
-                </div>
-
+          <section class="board-column">
+            <div class="column-heading">
+              <span class="column-dot dot-completed"></span>
+              <h3>Completed</h3>
+              <span id="completedColumnCount" class="column-count">0</span>
             </div>
-
-
-            <div class="stat-card">
-
-                <div class="stat-icon orange">
-                    🔄
-                </div>
-
-                <div>
-                    <span>In Progress</span>
-                    <strong id="progressTasks">0</strong>
-                </div>
-
-            </div>
-
-
-            <div class="stat-card">
-
-                <div class="stat-icon green">
-                    ✅
-                </div>
-
-                <div>
-                    <span>Completed</span>
-                    <strong id="completedTasks">0</strong>
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <section class="section">
-
-            <div class="section-header">
-
-                <div>
-                    <h3>Projects</h3>
-                    <p>Your current projects</p>
-                </div>
-
-                <button id="newProjectButton" class="secondary-button">
-                    + New Project
-                </button>
-
-            </div>
-
-
-            <div id="projectsContainer" class="projects-grid">
-
-            </div>
-
-        </section>
-
-
-        <section class="section">
-
-            <div class="section-header">
-
-                <div>
-                    <h3>Task Board</h3>
-                    <p>Track your tasks</p>
-
-                </div>
-
-                <div class="filters">
-
-                    <input
-                        type="search"
-                        id="searchInput"
-                        placeholder="Search tasks..."
-                    >
-
-                    <select id="priorityFilter">
-
-                        <option value="all">
-                            All priorities
-                        </option>
-
-                        <option value="high">
-                            High
-                        </option>
-
-                        <option value="medium">
-                            Medium
-                        </option>
-
-                        <option value="low">
-                            Low
-                        </option>
-
-                    </select>
-
-                </div>
-
-            </div>
-
-
-            <div class="board">
-
-                <div class="column">
-
-                    <div class="column-header">
-
-                        <div>
-                            <h4>To Do</h4>
-                            <span id="todoCount">0 tasks</span>
-                        </div>
-
-                        <span class="column-dot todo-dot"></span>
-
-                    </div>
-
-                    <div
-                        id="todoColumn"
-                        class="task-list"
-                    ></div>
-
-                </div>
-
-
-                <div class="column">
-
-                    <div class="column-header">
-
-                        <div>
-                            <h4>In Progress</h4>
-                            <span id="progressCount">0 tasks</span>
-                        </div>
-
-                        <span class="column-dot progress-dot"></span>
-
-                    </div>
-
-                    <div
-                        id="progressColumn"
-                        class="task-list"
-                    ></div>
-
-                </div>
-
-
-                <div class="column">
-
-                    <div class="column-header">
-
-                        <div>
-                            <h4>Completed</h4>
-                            <span id="completedCount">0 tasks</span>
-                        </div>
-
-                        <span class="column-dot completed-dot"></span>
-
-                    </div>
-
-                    <div
-                        id="completedColumn"
-                        class="task-list"
-                    ></div>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <footer>
-
-            <p>
-                TaskFlow © 2026
-            </p>
-
-            <p>
-                Developed by
-                <strong>Hussein Motahar</strong>
-            </p>
-
-        </footer>
-
+            <div id="completedTasks" class="task-list" data-status="completed"></div>
+          </section>
+        </div>
+        <p id="emptySearchMessage" class="empty-search" hidden>No tasks match your search.</p>
+      </section>
+
+      <footer class="app-footer">
+        <span>TaskFlow <span class="footer-muted">— Make progress visible.</span></span>
+        <span>Developed by <strong>Hussein Motahar</strong></span>
+      </footer>
     </main>
+  </div>
 
+  <div id="taskModal" class="modal-backdrop" aria-hidden="true">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">WORKSPACE</p>
+          <h2 id="taskModalTitle">Create a new task</h2>
+        </div>
+        <button id="closeTaskModalBtn" class="icon-button" type="button"
+                aria-label="Close dialog">×</button>
+      </div>
+      <form id="taskForm">
+        <label for="taskTitle">Task title <span class="required">*</span></label>
+        <input id="taskTitle" name="title" type="text" maxlength="160"
+               placeholder="e.g. Prepare project proposal" required>
 
-    <div id="taskModal" class="modal hidden">
+        <label for="taskProject">Project</label>
+        <select id="taskProject" name="project"></select>
 
-        <div class="modal-content">
-
-            <div class="modal-header">
-
-                <h3>Create New Task</h3>
-
-                <button
-                    id="closeTaskModal"
-                    class="close-button"
-                >
-                    ×
-                </button>
-
-            </div>
-
-
-            <form id="taskForm">
-
-                <label>
-                    Task title
-                </label>
-
-                <input
-                    type="text"
-                    id="taskTitle"
-                    placeholder="Enter task title"
-                    required
-                >
-
-
-                <label>
-                    Project
-                </label>
-
-                <input
-                    type="text"
-                    id="taskProject"
-                    placeholder="Project name"
-                    required
-                >
-
-
-                <label>
-                    Priority
-                </label>
-
-                <select id="taskPriority">
-
-                    <option value="low">
-                        Low
-                    </option>
-
-                    <option value="medium" selected>
-                        Medium
-                    </option>
-
-                    <option value="high">
-                        High
-                    </option>
-
-                </select>
-
-
-                <label>
-                    Deadline
-                </label>
-
-                <input
-                    type="date"
-                    id="taskDeadline"
-                >
-
-
-                <button
-                    type="submit"
-                    class="primary-button full-width"
-                >
-                    Create Task
-                </button>
-
-            </form>
-
+        <div class="form-row">
+          <div>
+            <label for="taskPriority">Priority</label>
+            <select id="taskPriority" name="priority">
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div>
+            <label for="taskDueDate">Due date</label>
+            <input id="taskDueDate" name="dueDate" type="date">
+          </div>
         </div>
 
-    </div>
+        <label for="taskStatus">Status</label>
+        <select id="taskStatus" name="status">
+          <option value="todo">To do</option>
+          <option value="progress">In progress</option>
+          <option value="completed">Completed</option>
+        </select>
 
+        <div class="modal-actions">
+          <button id="cancelTaskBtn" class="button button-secondary" type="button">Cancel</button>
+          <button class="button button-primary" type="submit">Create task</button>
+        </div>
+      </form>
+    </section>
+  </div>
 
-    <script src="app.js"></script>
+  <div id="projectModal" class="modal-backdrop" aria-hidden="true">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="projectModalTitle">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">WORKSPACE</p>
+          <h2 id="projectModalTitle">Create a new project</h2>
+        </div>
+        <button id="closeProjectModalBtn" class="icon-button" type="button"
+                aria-label="Close dialog">×</button>
+      </div>
+      <form id="projectForm">
+        <label for="projectName">Project name <span class="required">*</span></label>
+        <input id="projectName" name="name" type="text" maxlength="80"
+               placeholder="e.g. Mobile App" required>
+        <label for="projectColor">Project color</label>
+        <select id="projectColor" name="color">
+          <option value="#7065f0">Purple</option>
+          <option value="#2589ed">Blue</option>
+          <option value="#12a594">Teal</option>
+          <option value="#e99a35">Orange</option>
+          <option value="#e15c79">Pink</option>
+        </select>
+        <div class="modal-actions">
+          <button id="cancelProjectBtn" class="button button-secondary" type="button">Cancel</button>
+          <button class="button button-primary" type="submit">Create project</button>
+        </div>
+      </form>
+    </section>
+  </div>
 
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
-```
